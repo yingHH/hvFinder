@@ -1,0 +1,51 @@
+# ============================================================
+# mNGS Pipeline Configuration (Strict Mode)
+# ============================================================
+
+# 全局通用配置
+global:
+  threads: 64                # 默认运行线程数
+  tmp_dir_suffix: "_tmp"     # 临时文件夹后缀名
+
+# 1. 质量过滤 (fastp)
+fastp:
+  bin: "fastp"
+  # 注：当前代码逻辑中 fastp 仅使用了 bin 路径，未通过 params 传递额外参数
+
+bowtie2:
+  bin: "bowtie2"
+  params:
+    index_path: "/path/to/hg38/index_prefix" # 需替换为实际的宿主参考基因组索引路径
+  
+samtools:
+  bin: "samtools"
+
+# 2. 核糖体去除 (ribodetector)
+ribodetector:
+  bin: "~/miniconda3/envs/ribodetector/bin/ribodetector_cpu"
+  params:
+    len: 149                 # 对应代码 c['params']['len']
+    enzyme: "rrna"           # 对应代码 c['params']['enzyme']
+    chunk_size: 256          # 对应代码 c['params']['chunk_size']
+
+# 3. 序列组装 (megahit)
+megahit:
+  bin: "megahit"
+  params:
+    force: true              # 对应代码 {'--force' if c['params']['force'] else ''}
+
+# 4. 去重聚类 (cdhit-est)
+cdhit:
+  bin: "cdhit-est"
+  params:
+    memory_limit: 200000     # 对应代码 c['params']['memory_limit']
+
+# 5. 物种注释 (diamond)
+diamond:
+  bin: "diamond"
+  db_path: "/public21/home/sc90258/common/databases/diamond/nr.dmnd"
+  params:
+    sensitivity: "--sensitive" # 对应代码 c['params']['sensitivity']
+    evalue: "1e-5"             # 对应代码 c['params']['evalue']
+    max_target_seqs: 10        # 对应代码 c['params']['max_target_seqs']
+    outfmt: "6 qseqid sseqid qcovhsp pident qlen slen length qstart qend sstart send evalue staxids sscinames sskingdoms"

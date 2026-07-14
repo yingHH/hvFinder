@@ -1,0 +1,171 @@
+Total accessions: 10264
+GCA/GCF (Assembly) accessions: 7166
+Other (Nucleotide) accessions: 3098
+
+Fetching TaxIDs from Nucleotide database...
+  Batch 1/16: 200 accessions
+  Batch 2/16: 200 accessions
+  Batch 3/16: 200 accessions
+  Batch 4/16: 200 accessions
+  Batch 5/16: 200 accessions
+  Batch 6/16: 200 accessions
+  Batch 7/16: 200 accessions
+  Batch 8/16: 200 accessions
+  Batch 9/16: 200 accessions
+  Batch 10/16: 200 accessions
+  Batch 11/16: 200 accessions
+  Batch 12/16: 200 accessions
+  Batch 13/16: 200 accessions
+  Batch 14/16: 200 accessions
+  Batch 15/16: 200 accessions
+  Batch 16/16: 98 accessions
+
+Fetching TaxIDs from Assembly database...
+  Unique GCA/GCF accessions: 7100
+    Assembly batch 1/143: 50 accessions
+    Assembly batch 2/143: 50 accessions
+    Assembly batch 3/143: 50 accessions
+    Assembly batch 4/143: 50 accessions
+    Assembly batch 5/143: 50 accessions
+    Assembly batch 6/143: 50 accessions
+    Assembly batch 7/143: 50 accessions
+    Assembly batch 8/143: 50 accessions
+    Assembly batch 9/143: 50 accessions
+    Assembly batch 10/143: 50 accessions
+    Assembly batch 11/143: 50 accessions
+    Assembly batch 12/143: 50 accessions
+    Assembly batch 13/143: 50 accessions
+    Assembly batch 14/143: 50 accessions
+    Assembly batch 15/143: 50 accessions
+    Assembly batch 16/143: 50 accessions
+    Assembly batch 17/143: 50 accessions
+    Assembly batch 18/143: 50 accessions
+    Assembly batch 19/143: 50 accessions
+    Assembly batch 20/143: 50 accessions
+    Assembly batch 21/143: 50 accessions
+    Assembly batch 22/143: 50 accessions
+    Assembly batch 23/143: 50 accessions
+    Assembly batch 24/143: 50 accessions
+    Assembly batch 25/143: 50 accessions
+    Assembly batch 26/143: 50 accessions
+    Assembly batch 27/143: 50 accessions
+    Assembly batch 28/143: 50 accessions
+    Assembly batch 29/143: 50 accessions
+    Assembly batch 30/143: 50 accessions
+    Assembly batch 31/143: 50 accessions
+    Assembly batch 32/143: 50 accessions
+    Assembly batch 33/143: 50 accessions
+    Assembly batch 34/143: 50 accessions
+    Assembly batch 35/143: 50 accessions
+    Assembly batch 36/143: 50 accessions
+    Assembly batch 37/143: 50 accessions
+    Assembly batch 38/143: 50 accessions
+    Assembly batch 39/143: 50 accessions
+    Assembly batch 40/143: 50 accessions
+    Assembly batch 41/143: 50 accessions
+    Assembly batch 42/143: 50 accessions
+    Assembly batch 43/143: 50 accessions
+    Assembly batch 44/143: 50 accessions
+    Assembly batch 45/143: 50 accessions
+    Assembly batch 46/143: 50 accessions
+    Assembly batch 47/143: 50 accessions
+    Assembly batch 48/143: 50 accessions
+    Assembly batch 49/143: 50 accessions
+    Assembly batch 50/143: 50 accessions
+    Assembly batch 51/143: 50 accessions
+    Assembly batch 52/143: 50 accessions
+    Assembly batch 53/143: 50 accessions
+    Assembly batch 54/143: 50 accessions
+    Assembly batch 55/143: 50 accessions
+    Assembly batch 56/143: 50 accessions
+    Assembly batch 57/143: 50 accessions
+    Assembly batch 58/143: 50 accessions
+    Assembly batch 59/143: 50 accessions
+    Assembly batch 60/143: 50 accessions
+    Assembly batch 61/143: 50 accessions
+    Assembly batch 62/143: 50 accessions
+    Assembly batch 63/143: 50 accessions
+    Assembly batch 64/143: 50 accessions
+    Assembly batch 65/143: 50 accessions
+    Assembly batch 66/143: 50 accessions
+    Assembly batch 67/143: 50 accessions
+    Assembly batch 68/143: 50 accessions
+    Assembly batch 69/143: 50 accessions
+    Assembly batch 70/143: 50 accessions
+    Assembly batch 71/143: 50 accessions
+    Assembly batch 72/143: 50 accessions
+    Assembly batch 73/143: 50 accessions
+    Assembly batch 74/143: 50 accessions
+    Assembly batch 75/143: 50 accessions
+    Assembly batch 76/143: 50 accessions
+    Assembly batch 77/143: 50 accessions
+    Assembly batch 78/143: 50 accessions
+    Assembly batch 79/143: 50 accessions
+    Assembly batch 80/143: 50 accessions
+    Assembly batch 81/143: 50 accessions
+    Assembly batch 82/143: 50 accessions
+    Assembly batch 83/143: 50 accessions
+    Assembly batch 84/143: 50 accessions
+    Assembly batch 85/143: 50 accessions
+    Assembly batch 86/143: 50 accessions
+    Assembly batch 87/143: 50 accessions
+    Assembly batch 88/143: 50 accessions
+    Assembly batch 89/143: 50 accessions
+    Assembly batch 90/143: 50 accessions
+    Assembly batch 91/143: 50 accessions
+    Assembly batch 92/143: 50 accessions
+    Assembly batch 93/143: 50 accessions
+    Assembly batch 94/143: 50 accessions
+    Assembly batch 95/143: 50 accessions
+    Assembly batch 96/143: 50 accessions
+    Assembly batch 97/143: 50 accessions
+    Assembly batch 98/143: 50 accessions
+    Assembly batch 99/143: 50 accessions
+    Assembly batch 100/143: 50 accessions
+    Assembly batch 101/143: 50 accessions
+    Assembly batch 102/143: 50 accessions
+    Assembly batch 103/143: 50 accessions
+    Assembly batch 104/143: 50 accessions
+    Assembly batch 105/143: 50 accessions
+    Assembly batch 106/143: 50 accessions
+    Assembly batch 107/143: 50 accessions
+    Assembly batch 108/143: 50 accessions
+    Assembly batch 109/143: 50 accessions
+    Assembly batch 110/143: 50 accessions
+    Assembly batch 111/143: 50 accessions
+    Assembly batch 112/143: 50 accessions
+    Assembly batch 113/143: 50 accessions
+    Assembly batch 114/143: 50 accessions
+    Assembly batch 115/143: 50 accessions
+    Assembly batch 116/143: 50 accessions
+    Assembly batch 117/143: 50 accessions
+    Assembly batch 118/143: 50 accessions
+    Assembly batch 119/143: 50 accessions
+    Assembly batch 120/143: 50 accessions
+    Assembly batch 121/143: 50 accessions
+    Assembly batch 122/143: 50 accessions
+    Assembly batch 123/143: 50 accessions
+    Assembly batch 124/143: 50 accessions
+    Assembly batch 125/143: 50 accessions
+    Assembly batch 126/143: 50 accessions
+    Assembly batch 127/143: 50 accessions
+    Assembly batch 128/143: 50 accessions
+    Assembly batch 129/143: 50 accessions
+    Assembly batch 130/143: 50 accessions
+    Assembly batch 131/143: 50 accessions
+    Assembly batch 132/143: 50 accessions
+    Assembly batch 133/143: 50 accessions
+    Assembly batch 134/143: 50 accessions
+    Assembly batch 135/143: 50 accessions
+    Assembly batch 136/143: 50 accessions
+    Assembly batch 137/143: 50 accessions
+    Assembly batch 138/143: 50 accessions
+    Assembly batch 139/143: 50 accessions
+    Assembly batch 140/143: 50 accessions
+    Assembly batch 141/143: 50 accessions
+    Assembly batch 142/143: 50 accessions
+
+Writing 0 mappings to ../data/high_pathogenic_virus_db/taxid_map_correct.txt
+
+Missing TaxIDs: 10264
+  First 10 missing: ['GCA_000852685', 'GCA_000863625', 'GCA_003147825', 'GCA_003147845', 'GCA_003147865', 'GCA_003147885', 'GCA_003147905', 'GCA_003147925', 'GCA_003147945', 'GCA_003147965']
