@@ -225,6 +225,7 @@ Detect specific pathogens from assembled contigs.
 #### settings.ini
 
 Configuration file is stored in the same directory as the executable (or in the project directory for development).
+There is an example setting.ini in the root directory.
 
 **Example:**
 ```ini
