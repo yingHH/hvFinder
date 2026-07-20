@@ -330,36 +330,36 @@ project_name/
 
 ## ❓ FAQ
 
-**Q1: hvFinder.exe fails to start**
+**Q: hvFinder.exe fails to start**  
 **A:** Make sure you have downloaded the complete executable. Antivirus software may block it - try adding an exception.
 
-**Q2: SSH connection fails**
+**Q: SSH connection fails**  
 **A:** Check network connection, SSH credentials, and firewall settings. Test connection with:
 ```bash
 ssh username@host -p port
 ```
 
-**Q3: Pipeline fails at specific step**
+**Q: Pipeline fails at specific step**  
 **A:** 
 1. Enable **Verbose Logging** in Settings
 2. Check remote server logs
 3. Verify all required tools are installed on remote server
 4. Check disk space on remote server
 
-**Q4: Checkpoint resume not working**
+**Q: Checkpoint resume not working**  
 **A:** 
 1. Verify checkpoint file exists
 2. Ensure **Resume from checkpoint** is checked
 3. Delete checkpoint file and restart if needed
 
-**Q5: No pathogens detected**
+**Q: No pathogens detected**  
 **A:** 
 1. Verify taxid list file is correct
 2. Check Diamond results contain target viruses
 3. Adjust filtering thresholds (lower identity/coverage)
 4. Verify BLASTN database is correctly built
 
-**Q6: BigWig file not generated**
+**Q: BigWig file not generated**  
 **A:** Ensure `bedGraphToBigWig` is installed on remote server:
 ```bash
 conda install -c bioconda ucsc-bedgraphtobigwig
