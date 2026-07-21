@@ -145,7 +145,7 @@ cd /path/to/hvFinder
 ```
 
 **Databases**
-The constructed databases are listed in [figshare](https://doi.org/10.6084/m9.figshare.32984498). Download the **virus2taxid** file and the **Highly pathetic virus database folder**. For host genome removal with Bowtie2, you may build a corresponding bowtie2 index by `bowtie2-build` command.
+The constructed databases are listed in [figshare](https://doi.org/10.6084/m9.figshare.c.8606981). Download the **virus2taxid** file and the **Highly pathetic virus database folder**. For host genome removal with Bowtie2, you may build a corresponding bowtie2 index by `bowtie2-build` command.
 
 ---
 
