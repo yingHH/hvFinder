@@ -1,0 +1,3 @@
+# Default virus taxid list for testing
+544571  California mosquito pool virus
+1853202	Parry's Lagoon virus
