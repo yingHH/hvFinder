@@ -1,0 +1,62 @@
+# GitHub Actions: build the hvFinder Windows client.
+#
+# To enable: move this file to .github/workflows/build-windows.yml
+# (if this project is the repository root, set environment-file / working-directory to
+#   build/environment-win.yml from the repo root.)
+#
+# Trigger: manual workflow_dispatch, or pushing a v* tag.
+
+name: build-windows-client
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash -el {0}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Miniconda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          environment-file: hvFinder/build/environment-win.yml
+          activate-environment: hvFinder
+          auto-activate: false
+          auto-update-conda: false
+
+      - name: Show versions
+        run: |
+          conda run -n hvFinder python -V
+          conda run -n hvFinder python -c "import PySide6, PyInstaller; print('PySide6', PySide6.__version__); print('PyInstaller', PyInstaller.__version__)"
+
+      - name: Build with PyInstaller
+        working-directory: hvFinder
+        run: conda run -n hvFinder python -m PyInstaller --clean --noconfirm hvFinder.spec
+
+      - name: Verify artifact
+        working-directory: hvFinder
+        run: |
+          ls -l dist/hvFinder.exe
+          python - <<'PY'
+          import hashlib, pathlib
+          p = pathlib.Path("dist/hvFinder.exe")
+          print("size_mb", round(p.stat().st_size / 1048576, 1))
+          print("sha256", hashlib.sha256(p.read_bytes()).hexdigest())
+          PY
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hvFinder-windows
+          path: hvFinder/dist/hvFinder.exe
+          if-no-files-found: error
+          retention-days: 30

@@ -1,0 +1,47 @@
+# Packaging metadata for hvFinder.
+#
+# Layout:
+#   client/   Windows GUI (PySide6 / paramiko)
+#   server/   Linux analysis scripts (standard library + PyYAML)
+#
+# Console scripts: hvfinder-gui / pathogen_detect / mNGS_pip / get_script_base
+# A compute node that only runs the pipeline can call
+# `python server/mNGS_pip.py ...` without installing this package.
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hvfinder"
+version = "0.1.0"
+description = "hvFinder: mNGS pipeline and GUI for detecting highly pathogenic viruses"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+# The server only needs PyYAML. GUI dependencies (PySide6 / paramiko /
+# cryptography) live in an optional extra so `pip install -e .` does not drag
+# PySide6 onto a compute node.
+dependencies = [
+    "PyYAML",
+]
+
+[project.optional-dependencies]
+client = [
+    "PySide6>=6.5",
+    "paramiko",
+    "cryptography",
+]
+build = ["pyinstaller>=6.0", "pyinstaller-hooks-contrib"]
+
+[project.scripts]
+hvfinder-gui = "client.gui:main"
+pathogen_detect = "server.pathogen_detect:main"
+mNGS_pip = "server.mNGS_pip:main"
+get_script_base = "server.get_script_base:get_script_base"
+
+[tool.setuptools]
+packages = ["client", "server"]
+
+[tool.setuptools.package-data]
+server = ["configs/*.yaml", "configs/*.csv"]

@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """
-返回当前脚本所在的目录路径
-用于动态获取脚本目录，以查找默认数据文件
+Print the directory this script lives in, so clients can locate the
+installation.
 """
 
 import os
 
 def get_script_base():
-    """返回脚本所在目录的路径"""
+    """
+    Return the directory of this script.
+    """
     return os.path.dirname(os.path.abspath(__file__))
 
 if __name__ == '__main__':

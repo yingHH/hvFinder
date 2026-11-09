@@ -1,379 +1,250 @@
-# hvFinder - mNGS Pipeline and GUI Tool
+# hvFinder
 
-[![Version](https://img.shields.io/badge/version-0.0.1-blue.svg)](https://github.com/your-repo/hvFinder)
-[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey.svg)]()
+[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)]()
+[![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](pyproject.toml)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-brightgreen.svg)]()
+[![](https://img.shields.io/badge/build-passing-brightgreen)]()
 
-**hvFinder** is a comprehensive mNGS (metagenomic Next-Generation Sequencing) analysis pipeline with a user-friendly GUI interface. It provides automated pathogen detection from raw sequencing data to final reporting. This project is licensed under the [MIT License](https://choosealicense.com/licenses/mit/).
+**hvFinder** — a two-stage mNGS pipeline for detecting highly pathogenic viruses,
+with a desktop GUI for setting up, submitting and monitoring runs on a Linux
+server.
 
----
+Given paired-end reads it performs QC, host and rRNA removal, assembly, a
+protein-level pre-screen against a curated high-consequence virus database, then a
+nucleotide-level confirmation against **hvn** (a curated high pathogenic virus
+nucleotide database — not NCBI `nt`), followed by a comprehensive nr DIAMOND search
+on the *confirmed* contigs only. The two-tier design keeps DIAMOND's
+sensitivity for divergent viruses while BLASTN controls specificity, which is what
+prevents near-neighbour cross-reactivity from being reported.
 
-## ✨ Features
-
-### Local GUI (Windows)
-- 🖥️ Intuitive PySide6-based GUI
-- 🔐 SSH connection management
-- 📁 Remote project file management
-- 📊 Real-time log display
-
-### Remote mNGS Analysis Pipeline
-- 🧬 Quality control (fastp)
-- 🎯 Host read removal (bowtie2)
-- 🧹 rRNA removal (ribodetector)
-- 🔗 De novo assembly (megahit)
-- 📌 Clustering (cd-hit)
-- 🏷️ Taxonomic annotation (diamond)
-
-### Pathogen Detection
-- 🦠 Target virus identification
-- 🔬 BLASTN alignment
-- 📈 Coverage calculation (samtools)
-- 📊 Detailed reporting with BigWig visualization
-
-### Advanced Features
-- ⏸️ Checkpoint resume support
-- 🚀 Slurm job scheduler support
-- ⚙️ Configurable parameters
-- 📝 Verbose logging for debugging
+- **Server side** (`server/`) — plain Python 3.9+, **standard library + PyYAML
+  only**. No GUI or SSH dependency, so it runs on compute nodes as-is.
+- **Client side** (`client/`) — PySide6 desktop app (Windows / macOS / Linux) with
+  three tabs: **1. SSH & Files** (host, credentials, work directory, reference
+  data check), **2. Pre-processing** and **3. Pathogen Detection** (all tool paths
+  and parameters). It uploads the scripts and config, submits the job over SSH —
+  directly or through Slurm — then polls it and streams the remote log back into
+  the window, showing progress per step. Every run is checkpointed, so a run that
+  was stopped or lost can be resumed from the GUI without redoing finished steps,
+  and results are pulled back for local inspection once the job finishes.
 
 ---
 
-## 🚀 Local GUI
-We recommend using the compiled hvFinder.exe.
+## Pipeline overview
 
-**Download**
-1. Download `hvFinder.exe` from the [releases](https://github.com/yingHH/hvFinder/releases) page
-2. Place it in a directory of your choice
-
-**First Run**
-1. Double-click `hvFinder.exe` to launch the GUI
-2. Configure SSH connection in **Tab 1**
-3. Create or select a project directory
-4. Configure analysis parameters in **Tab 2**
-5. Click **🚀 RUN PIPELINE** to start analysis
-
-**File Structure**
 ```
-your-directory/
-├── hvFinder.exe      # Main executable
-└── settings.ini      # Configuration file (auto-created)
+                     Tab 2 — pre-processing                    Tab 3 — detection
+  R1/R2 FASTQ ──► fastp ──► bowtie2 ──► ribodetector ──► MEGAHIT ──► CD-HIT-EST
+                  (QC)     (host-)      (rRNA)          (assembly)  (dedup)
+                                                    │
+                                                    ▼
+                                        PRESCREEN (DIAMOND, hvp)
+                                                    │
+                                     prescreen_candidates.fasta
+                                                    ▼
+                               BLASTN (hvn) ──► nr DIAMOND (confirmed contigs)
+                                                    │
+                                        coverage (bowtie2/samtools/bedtools)
+                                                    │
+                                     detection_results.tsv + bigWig + summary
 ```
 
-If you want to manually compile the GUI from the source code.
-**Requirements**
-- Python 3.9+
-- Windows 10/11 or Linux
-
-**Step 1: Clone Repository**
-```bash
-git clone https://github.com/yingHH/hvFinder.git
-cd hvFinder
-```
-
-**Step 2: Create Conda Environment**
-```bash
-conda create -n hvfinder python=3.9
-conda activate hvfinder
-```
-
-**Step 3: Install Dependencies**
-```bash
-pip install PySide6 paramiko PyYAML cryptography
-```
-
-**Step 4: Launch GUI**
-```bash
-# Windows
-python hvFinder/gui.py
-
-# Or use the entry point
-hvFinder-gui
-```
-
-**Step 5: (Optional) Build EXE**
-```bash
-pip install pyinstaller pyinstaller-hooks-contrib
-python -m PyInstaller --clean --name hvFinder \
-    --windowed --onefile \
-    --add-data="settings.ini:." \
-    --add-data="configs:configs" \
-    --hidden-import paramiko \
-    --hidden-import PySide6 \
-    --hidden-import yaml \
-    --hidden-import cryptography \
-    --icon=hvFinder.ico \
-    hvFinder/gui.py
-```
+Both stages are checkpointed (`preprocess.checkpoints.json`,
+`pathogen_detect.checkpoints.json`). Re-running the **same command** after an
+interruption resumes from the last completed step; `--no-resume` starts over.
 
 ---
 
-## 🖥️ Remote Server Setup
+## Requirements
 
-The remote Linux server must have the following tools installed by conda environments (essential):
+| | Server (analysis) | Client (desktop GUI) |
+|---|---|---|
+| Python | 3.9+ | 3.9+ |
+| Python packages | PyYAML | PySide6, paramiko (cryptography for key-based auth) |
+| External programs | 11 command-line tools — listed under *Installation* and checked by `tests/selfcheck.sh` | — |
+| Reference data | hvn, hvp, nr DIAMOND database, bowtie2 host index, taxid list — see [Required data](#required-data) | — |
+| Scheduler | optional: a job runs on the host directly, `sbatch` is only used when the GUI is set to Slurm mode | — |
+| Network | SSH from the client, outbound not required | SSH to the server |
 
-**Core Tools**
+## Installation
+
+### Server (Linux)
+
 ```bash
-# Sequence processing
-fastp
-bowtie2
-samtools
-
-# rRNA removal
-ribodetector
-
-# Assembly
-megahit
-cd-hit
-
-# Annotation
-diamond
-blastn
-
-# Visualization
-bedtools
-bedGraphToBigWig
+python -m pip install -e .          # installs PyYAML only
+# or simply run the scripts directly, no install needed:
+python server/mNGS_pip.py --help
+python server/pathogen_detect.py --help
 ```
 
-**Installation (Conda)**
+External tools must be on `PATH` (or given as absolute paths in the config):
+`fastp`, `bowtie2`, `samtools`, `ribodetector_cpu`, `megahit`, `cdhit-est`,
+`diamond`, `blastn`, `blastdbcmd`, `bedtools`, `bedGraphToBigWig`.
+
+### Client (desktop GUI)
+
+The pre-built standalone executables for Windows and Linux platforms are
+available in `dist/` — no Python installation is needed for those. macOS users
+either run from source as shown below or build the binary themselves.
+
+Running from source:
+
 ```bash
-conda install -c bioconda fastp bowtie2 samtools ribodetector megahit cd-hit diamond blastn bedtools ucsc-bedgraphtobigwig
+python -m pip install -e ".[client]"      # PySide6 + paramiko
+python client/gui.py
 ```
 
-**Python Package**
-Install hvFinder on remote server:
-```bash
-cd /path/to/hvFinder
+To build a standalone executable (PyInstaller cannot cross-compile, so build on
+the target platform):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File build\build_windows.ps1   # → dist\hvFinder.exe
 ```
 
-**Databases**
-The constructed databases are listed in [figshare](https://doi.org/10.6084/m9.figshare.c.8606981). Download the **virus2taxid** file and the **Highly pathetic virus database folder**. For host genome removal with Bowtie2, you may build a corresponding bowtie2 index by `bowtie2-build` command.
+```bash
+bash build/build_unix.sh                  # macOS / Linux → dist/hvFinder
+bash build/build_unix.sh --refresh-env    # update the conda env first, then build
+```
+
+Both scripts create (or reuse) the `hvFinder` conda environment from
+`build/environment-win.yml` / `build/environment-unix.yml`.
+See `build/README_BUILD.md` for details.
 
 ---
 
-## 📖 Usage
+## Self-check
 
-#### Tab 1: SSH & Files
+Run this **once on the server** after installation — it is the quickest way to see
+what is still missing:
 
-Configure SSH connection to remote Linux server.
+```bash
+bash tests/selfcheck.sh                                   # check everything
+bash tests/selfcheck.sh --stage preprocess --outdir /data/run
+bash tests/selfcheck.sh --deep                            # also run blastdbcmd -info / diamond dbinfo
+```
 
-**Settings:**
-- **Host IP**: Remote server address
-- **Port**: SSH port (default: 22)
-- **Username**: SSH username
-- **Password**: SSH password
-- **Base Directory**: Remote base directory for projects
+It runs in the foreground and is **read-only** (no job submitted, nothing written):
+Python version and PyYAML, code syntax, every tool declared in `config2.yaml`, the
+reference data (taxid list, hvn, hvp, bowtie2 host index, the nr DIAMOND
+database), output-directory writability and free space, and whether `sbatch`
+exists. Exit code `0` = ready (`[WARN]` items are optional), `1` = at least one
+`[FAIL]`.
 
-**Actions:**
-- **List Files**: Browse remote directory
-- **Create Project**: Create new project directory
+## Required data
 
-#### Tab 2: Pre-processing
+The repository does **not** ship reference databases. See [`data/README.md`](data/README.md)
+for the expected layout; the short version:
 
-Configure and run the mNGS analysis pipeline.
+| Item | Purpose |
+|---|---|
+| `data/virus_taxids_high_pathogenic.txt` | target taxids, one per line (`#` comments allowed) |
+| `data/hvn/hvn.fa` (+ BLAST DB) | **hvn** — high pathogenic virus nucleotide DB, used by BLASTN for confirmation |
+| `data/hvp/hvp.dmnd` | **hvp** — high pathogenic virus protein DB, used by the DIAMOND pre-screen |
+| `data/databases/nr.dmnd` | NCBI nr, for the comprehensive DIAMOND pass |
+| `host_idx/host_idx.*` | bowtie2 host index |
 
-**Input Data:**
-- **Reads R1**: Forward reads path (remote)
-- **Reads R2**: Reverse reads path (remote)
-
-**Execution Mode:**
-- **Direct Python**: Run directly with Python
-- **Slurm (srun)**: Submit to Slurm cluster
-
-**Advanced Parameters:**
-- fastp parameters
-- bowtie2 parameters
-- megahit parameters
-- cd-hit parameters
-- diamond parameters
-
-**Settings:**
-- ☑️ Save Settings
-- ☐ Verbose Logging
-- ☑️ Resume from checkpoint
-
-#### Tab 3: Pathogen Detection
-
-Detect specific pathogens from assembled contigs.
-
-**Input Settings:**
-- **TaxID List File**: Target virus taxids (remote path)
-- **Virus Index Path**: BLASTN database path (remote)
-
-**Execution Mode:**
-- **Direct Python** / **Slurm (srun)**
-
-**Filter Parameters (Diamond):**
-- **Identity (%)**: Minimum identity (default: 60)
-- **Coverage (%)**: Minimum coverage (default: 50)
-- **E-value**: Maximum E-value (default: 1e-10)
-
-**BLASTN Parameters:**
-- **Identity (%)**: BLASTN identity threshold (default: 70)
-- **E-value**: BLASTN E-value threshold (default: 1e-4)
-- **Coverage (%)**: BLASTN coverage threshold (default: 70)
-
-**Output Settings:**
-- **Folder Name**: Output directory name (default: pathogen_results)
-
-**Actions:**
-- **💾 View Results**: View detection results in table
-- **💾 Export CSV**: Export results to CSV file
+Taxids can be looked up in NCBI Taxonomy (web search or the E-utilities API);
+the file itself is plain text, one taxid per line.
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
-#### settings.ini
+Everything the pipeline reads lives in **one** file, `server/configs/config2.yaml`:
 
-Configuration file is stored in the same directory as the executable (or in the project directory for development).
-There is an example setting.ini in the root directory.
+- each tool has a `bin` key — a **plain command name** by default, so nothing is
+  pinned to a specific machine; set an absolute path only if the tool is not on
+  `PATH`;
+- database paths (`diamond.db_path`, `prescreen.db_path`, `bowtie2.params.index_path`,
+  ...) are empty or relative placeholders and must be filled in;
+- thresholds and DIAMOND memory parameters are documented inline.
 
-**Example:**
-```ini
-[SSH]
-host = ssh.example.com
-port = 22
-user = username
-pwd = password
-base = /home/data/mNGS_projects
-script_base = /path/to/hvFinder
+The GUI offers the same knobs: **Tab 2** owns the pre-processing stage
+(including the small pre-screen DB), **Tab 3** owns the detection stage
+(BLASTN parameters and the nr DIAMOND DB/parameters). Saving from the GUI writes
+both `client/settings.ini` and the server-side `config2.yaml`.
 
-[PIPELINE]
-fq1 = /path/to/reads_1.fq
-fq2 = /path/to/reads_2.fq
-run_mode = Direct Python
-verbose = False
-resume = True
+DIAMOND memory model: `-c 1` is fixed, `-b = max(2, ⌊(node_mem − min(30, 0.3·node_mem)) / 6⌋)`
+(e.g. 231 GB → 33). Nothing is auto-detected — if `node_mem_gb` is 0, no `-b/-c`
+is passed and DIAMOND keeps its own defaults.
 
-[PATHOGEN]
-taxid_file = /path/to/taxids.txt
-virus_index = /path/to/virus_db
-run_mode = Direct Python
-output_folder = pathogen_results
-diamond_pident = 60
-diamond_qcov = 50
-diamond_evalue = 1e-10
-blastn_identity = 70
-blastn_evalue = 1e-4
-blastn_coverage = 70
-verbose = False
-resume = True
+---
+
+## Credentials
+
+`client/settings.ini` ships as a **blank template** — host, user, password and all
+paths are empty, and every tool binary is a plain command name. Fill it in on your
+own machine; if you keep it under version control, avoid committing real
+credentials (`git update-index --assume-unchanged client/settings.ini`).
+
+## Usage
+
+### Command line (server)
+
+```bash
+# stage 1 — pre-processing, writes <out>/prescreen_candidates.fasta
+python server/mNGS_pip.py -1 R1.fq.gz -2 R2.fq.gz -o out -t 64 \
+    -c server/configs/config2.yaml
+
+# stage 2 — detection (BLASTN vs hvn → nr DIAMOND → coverage → report)
+python server/pathogen_detect.py --fq1 R1.fq.gz --fq2 R2.fq.gz \
+    --megahit out --diamond out/nr_hits.tsv --output out/pathogen \
+    --taxids data/virus_taxids_high_pathogenic.txt \
+    --virus-index data/hvn/hvn.fa \
+    --threads 64 -c server/configs/config2.yaml
+```
+
+### GUI
+
+1. Fill in the SSH host / port / user / password and the remote working directory.
+2. Pick or create a project, set R1/R2, choose `Direct Python` or `Slurm (srun)`.
+3. **RUN PIPELINE** (Tab 2) → wait for `prescreen_candidates.fasta` →
+   **RUN DETECTION** (Tab 3).
+4. The log box reports `✅ … finished` or `❌ … failed (exit code N)`; the tab
+   status shows `● Finished` even for runs started outside the GUI.
+
+---
+
+## Outputs
+
+| File | Content |
+|---|---|
+| `preprocess/prescreen_candidates.fasta` | contigs kept by the protein pre-screen (input of stage 2) |
+| `pathogen/detection_results.tsv` | per-contig evidence (23 columns, stable order) |
+| `pathogen/detection_virus_summary.tsv` | per-virus call, margin and coverage |
+| `pathogen/detection_thresholds.json` | every threshold and parameter actually used |
+| `pathogen/contig_coverage.bw` | coverage track for genome browsers |
+| `pathogen/detection_summary.txt` | human-readable verdict (`No pathogen detected.` when empty) |
+
+Verdicts are `POSITIVE` / `INDETERMINATE` / `NEGATIVE`. `INDETERMINATE` means the
+evidence passed every gate but the margin over the thresholds is below
+`margin_positive`; it is not a weak positive and should not be counted as one.
+CSV/TSV column order is treated as a contract: columns are appended, never
+renamed or reordered.
+
+---
+
+## Repository layout
+
+```
+client/            PySide6 GUI: SSH, submit, poll, view results
+server/            pipeline: mNGS_pip.py (stage 1), pathogen_detect.py (stage 2)
+  configs/         config2.yaml (all tool paths & parameters), species_aliases.csv
+tests/             server-side self-check (selfcheck.sh) — no test suite is shipped
+build/             PyInstaller build scripts (Windows / macOS / Linux) + conda env
+hvFinder.spec      PyInstaller spec (working-directory independent)
+pyproject.toml     packaging metadata and optional extras (client / build)
+data/              (placeholder) reference databases — see data/README.md
+dist/              pre-built standalone client (Windows .exe, Linux binary)
 ```
 
 ---
 
-## ⏸️ Checkpoint Resume
+## License
 
-Both Tab 2 and Tab 3 support checkpoint resume functionality.
+MIT.
 
-### How It Works
-1. After each major step, a checkpoint file is created
-2. If the pipeline is interrupted, restart will skip completed steps
-3. Checkpoint files:
-   - Tab 2: `checkpoint_status.pkl`
-   - Tab 3: `pathogen_detect.checkpoints.json`
+## Citation
 
-### Usage
-- ✅ **Resume from checkpoint (if exists)**: Automatically detect and resume
-- ❌ Uncheck to force restart from beginning
-
-### Manual Reset
-Delete checkpoint files to force fresh start:
-```bash
-# Tab 2
-rm /path/to/project/preprocess/checkpoint_status.pkl
-
-# Tab 3
-rm /path/to/project/pathogen_results/pathogen_detect.checkpoints.json
-```
-
----
-
-## 📊 Output Files
-
-#### Tab 2 (Pre-processing)
-```
-project_name/
-└── preprocess/
-    ├── results.fastp.html      # Quality control report
-    ├── results.fastp.json      # QC statistics
-    ├── results.bowtie2.log     # Host removal log
-    ├── results.diamond.tsv     # Taxonomic annotation
-    └── results_megahit_result/ # Assembly results
-        ├── results.contigs.fa
-        └── ...
-```
-
-#### Tab 3 (Pathogen Detection)
-```
-project_name/
-└── pathogen_results/
-    ├── blastn_results.tsv           # BLASTN alignments
-    ├── contigs_mapping.bam          # Reads to contigs alignment
-    ├── contigs_mapping.bam.bai      # BAM index
-    ├── contig_coverage_summary.tsv  # Coverage statistics
-    ├── contig_coverage.bw           # BigWig coverage track
-    ├── detection_results.tsv        # Final report
-    └── detection_summary.txt        # Summary report
-```
-
-#### Detection Report Format
-| Column | Description |
-|--------|-------------|
-| Virus_Name | Virus name |
-| TaxID | NCBI Taxonomy ID |
-| Best_Hit_Seq | Best hit virus sequence name |
-| Coverage(%) | Average coverage percentage |
-| Depth | Average sequencing depth |
-| Contig_ID | Contig identifier |
-
----
-
-## ❓ FAQ
-
-**Q: hvFinder.exe fails to start**  
-**A:** Make sure you have downloaded the complete executable. Antivirus software may block it - try adding an exception.
-
-**Q: SSH connection fails**  
-**A:** Check network connection, SSH credentials, and firewall settings. Test connection with:
-```bash
-ssh username@host -p port
-```
-
-**Q: Pipeline fails at specific step**  
-**A:** 
-1. Enable **Verbose Logging** in Settings
-2. Check remote server logs
-3. Verify all required tools are installed on remote server
-4. Check disk space on remote server
-
-**Q: Checkpoint resume not working**  
-**A:** 
-1. Verify checkpoint file exists
-2. Ensure **Resume from checkpoint** is checked
-3. Delete checkpoint file and restart if needed
-
-**Q: No pathogens detected**  
-**A:** 
-1. Verify taxid list file is correct
-2. Check Diamond results contain target viruses
-3. Adjust filtering thresholds (lower identity/coverage)
-4. Verify BLASTN database is correctly built
-
-**Q: BigWig file not generated**  
-**A:** Ensure `bedGraphToBigWig` is installed on remote server:
-```bash
-conda install -c bioconda ucsc-bedgraphtobigwig
-```
-
----
-
-## 🙏 Acknowledgments
-
-- **fastp**: Ultra-fast all-in-one FASTQ preprocessor
-- **bowtie2**: Fast gapped-read alignment
-- **megahit**: Efficient metagenomics assembler
-- **diamond**: Fast protein alignment
-- **PySide6**: Python Qt6 bindings
-- **PyInstaller**: Python to executable converter
-
----
+If you use hvFinder in published work, please cite the accompanying manuscript
+(reference to be added upon publication).

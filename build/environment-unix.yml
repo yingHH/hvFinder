@@ -1,0 +1,24 @@
+# Conda environment for building the hvFinder **macOS / Linux** client.
+#
+# Must run on the platform you are targeting; PyInstaller cannot cross-compile
+# (an environment created on Linux cannot produce a macOS binary and vice versa).
+#
+# Create:
+#   conda env create -f build/environment-unix.yml
+# Update:
+#   conda env update -f build/environment-unix.yml --prune
+# Write an explicit lock file (recommended, archive it with the release):
+#   conda list -n hvFinder --explicit > build/conda-explicit-unix.txt
+
+name: hvFinder
+channels:
+  - conda-forge
+dependencies:
+  - python=3.9          # matches the version stated in the README
+  - pip
+  - pyinstaller>=6.0
+  - pyinstaller-hooks-contrib
+  - pyside6>=6.5
+  - paramiko
+  - pyyaml
+  - cryptography

@@ -1,0 +1,39 @@
+# alias,acronym
+# Maps names from the taxid file / NCBI back to a species of the table.
+# Column 1 takes any common name (case, punctuation and accents are normalised); Acronym。
+# Lines starting with # are comments.
+Zaire ebolavirus,EBOV
+Ebola virus,EBOV
+Zaire virus,EBOV
+Sudan ebolavirus,SUDV
+Sudan virus,SUDV
+Bundibugyo ebolavirus,BDBV
+Bundibugyo virus,BDBV
+Tai Forest ebolavirus,TAFV
+Taï Forest ebolavirus,TAFV
+Reston ebolavirus,RESTV
+Reston virus,RESTV
+Bombali ebolavirus,BOMV
+Bombali virus,BOMV
+Marburg virus,MARV
+Marburg marburgvirus,MARV
+Hendra virus,HeV
+Hendra henipavirus,HeV
+Nipah virus,NiV
+Nipah henipavirus,NiV
+Lassa virus,LASV
+Lassa mammarenavirus,LASV
+Machupo virus,MACV
+Machupo mammarenavirus,MACV
+Hantaan virus,HTNV
+Hantaan orthohantavirus,HTNV
+Seoul virus,SEOV
+Seoul orthohantavirus,SEOV
+Crimean-Congo hemorrhagic fever virus,CCHFV
+Crimean Congo haemorrhagic fever virus,CCHFV
+Congo hemorrhagic fever virus,CCHFV
+CCHF virus,CCHFV
+Monkeypox virus,MPXV
+Mpox virus,MPXV
+Variola virus,VARV
+Smallpox virus,VARV

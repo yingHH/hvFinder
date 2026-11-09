@@ -1,0 +1,119 @@
+# ============================================================
+# mNGS Pipeline Configuration (Strict Mode)
+# ============================================================
+
+# Global settings
+global:
+  threads: 64                # default thread count
+  tmp_dir_suffix: "_tmp"     # suffix for the temporary folder
+
+# 1. Quality filtering (fastp)
+fastp:
+  bin: "fastp"
+  # Note: only fastp.bin is used; no params are passed to fastp
+
+bowtie2:
+  bin: "bowtie2"
+  params:
+    index_path: "host_idx/host_idx"   # bowtie2 index prefix for the host genome (required)
+  
+samtools:
+  bin: "samtools"
+
+# 2. rRNA removal (ribodetector)
+ribodetector:
+  bin: "ribodetector_cpu"
+  enabled: true              # false skips rRNA removal (common for DNA libraries); the CLI also has --skip-ribo
+  params:
+    len: 149                 # maps to c['params']['len']
+    enzyme: "rrna"           # maps to c['params']['enzyme']
+    chunk_size: 256          # maps to c['params']['chunk_size']
+
+# 3. Assembly (MEGAHIT)
+megahit:
+  bin: "megahit"
+  params:
+    force: true              # maps to {'--force' if c['params']['force'] else ''}
+
+# 4. Redundancy removal (CD-HIT-EST)
+cdhit:
+  bin: "cdhit-est"
+  params:
+    memory_limit: 200000     # maps to c['params']['memory_limit']
+
+# 5. Taxonomic assignment (DIAMOND)
+diamond:
+  bin: "diamond"
+  db_path: "data/databases/nr.dmnd"
+  params:
+    sensitivity: "--sensitive" # maps to c['params']['sensitivity']
+    evalue: "1e-5"             # maps to c['params']['evalue']
+    max_target_seqs: 10        # maps to c['params']['max_target_seqs']
+    outfmt: "6 qseqid sseqid qcovhsp pident qlen slen length qstart qend sstart send evalue staxids sscinames sskingdoms"
+
+    # ---- memory sizing: -b derived from node memory, -c fixed to 1 ----
+    # model: memory(GB) ~ gb_per_block * (b / c), gb_per_block defaults to 6
+    # e.g. 231 GB node - 30 GB reserve = 201 GB -> b = floor(201/6) = 33
+    # node_mem_gb: total memory of the node in GB; set it explicitly;
+    #   0 = not set: no -b/-c is passed, DIAMOND keeps its own defaults (nothing is probed)
+    #   it can be overridden at run time with --node-mem-gb 231
+    node_mem_gb: 0
+    mem_reserve_gb: 30         # headroom for the OS, DIAMOND itself and other processes
+    index_chunks: 1            # fixed to 1; memory is governed by b alone
+    blocks: 0                  # when > 0, b is taken from here and the formula is ignored
+    gb_per_block: 6            # model coefficient: GB per block (DIAMOND rule of thumb is 6; larger is more conservative)
+
+# 5b. Pre-screen (stage 1) - always runs, there is no switch
+# One blastx pass on the CD-HIT output against the high pathogenic virus
+# protein database; hits go to preprocess/prescreen_candidates.fasta (stage 2 input).
+# Measured on 11 samples: stage 1 takes 5-41 s / ~3 GB, a single nr pass
+# 4,600-6,600 s, with missed_any = missed_pass = 0 (same recall).
+prescreen:
+  bin: ""                    # empty = reuse diamond.bin
+  db_path: "data/hvp/hvp.dmnd"
+  params:
+    sensitivity: "--sensitive"
+    evalue: "1e-3"           # must stay looser than the 1e-2 used in detection, or hits are lost
+    max_target_seqs: 1       # only asks whether there is any virus-like hit; all hits are not needed
+
+# 6. Coverage visualisation (bedGraphToBigWig)
+# Used by pathogen_detect.py only (contig_coverage.bw); mNGS_pip.py ignores it;
+# kept here so the self-check and the client read a single source.
+bedgraph_to_bigwig:
+  bin: "bedGraphToBigWig"
+
+# 7. Detection-stage tools (pathogen_detect.py)
+# these three paths also come from this file only.
+blastn:
+  bin: "blastn"
+
+bedtools:
+  bin: "bedtools"
+
+# blastdbcmd is optional: the reference length comes from BLASTN's slen,
+# only the --expect-db-entries count needs it; breadth is unaffected.
+blastdbcmd:
+  bin: "blastdbcmd"
+
+# ============================================================
+# 8. Database paths (databases)
+# ------------------------------------------------------------
+databases:
+  virus_taxids: data/virus_taxids_high_pathogenic.txt
+  blastn_index: data/hvn/hvn.fa
+# The GUI's `Sync DB to Server` button writes the database settings from
+# settings.ini into this section of the server-side file:
+#
+#   databases:
+#     diamond_db:    <diamond.db_path>
+#     bowtie2_index: <bowtie2.params.index_path>
+#     blastn_index:  <prefix of the BLASTN hvn database, needs .nhr/.nin/.nsq>
+#     virus_taxids:  <list of target taxids>
+#
+# This section is the single source of database paths:
+#   both stage scripts read it
+#   when --taxids / --virus-index are not given, these values are used;
+#   pathogen_detect.py reads it too (CLI values still win).
+# diamond_db / bowtie2_index are deliberately absent: they duplicate
+# diamond.db_path / bowtie2.params.index_path and would duplicate GUI fields.
+# ============================================================
