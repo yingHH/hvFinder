@@ -84,7 +84,7 @@ External tools must be on `PATH` (or given as absolute paths in the config):
 ### Client (desktop GUI)
 
 The pre-built standalone executables for Windows and Linux platforms are
-available in `dist/` — no Python installation is needed for those. macOS users
+available in `release` page — no Python installation is needed for those. macOS users
 either run from source as shown below or build the binary themselves.
 
 Running from source:
