@@ -11,8 +11,8 @@ server.
 
 Given paired-end reads it performs QC, host and rRNA removal, assembly, a
 protein-level pre-screen against a curated high-consequence virus database, then a
-nucleotide-level confirmation against **hvn** (a curated high pathogenic virus
-nucleotide database — not NCBI `nt`), followed by a comprehensive nr DIAMOND search
+nucleotide-level confirmation against **hvn** (curated high pathogenic virus
+nucleotide database), followed by a comprehensive nr DIAMOND search
 on the *confirmed* contigs only. The two-tier design keeps DIAMOND's
 sensitivity for divergent viruses while BLASTN controls specificity, which is what
 prevents near-neighbour cross-reactivity from being reported.
