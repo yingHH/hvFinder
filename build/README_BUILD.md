@@ -1,20 +1,24 @@
-# Building the desktop client (Windows / macOS / Linux)
+# Building the desktop client (Windows / Linux; macOS via the same script)
 
 ## Short version
 
-**PyInstaller cannot cross-compile.** Each platform needs its own build:
+**PyInstaller builds only for the host platform.** Each platform needs its own build:
 
 | Target | Script | Output |
 |---|---|---|
 | Windows | `build\build_windows.ps1` | `dist\hvFinder.exe` |
-| macOS | `bash build/build_unix.sh` | `dist/hvFinder` (Mach-O) |
+| macOS | `bash build/build_unix.sh` | `dist/hvFinder` (Mach-O) — unvalidated |
 | Linux | `bash build/build_unix.sh` | `dist/hvFinder` (ELF) |
 
-There is no `.app` bundle on macOS: the same one-file executable is produced.
+macOS produces the same one-file executable as the other platforms.
 
-The analysis pipeline itself runs on the **server** and needs none of this — the
-executable only wraps `client/gui.py`, so you can also simply run
-`python client/gui.py` on any platform with PySide6 installed.
+> **Validation status.** The Windows (`.exe`) and Linux (ELF) builds have been
+> built and smoke-tested by us. macOS uses the same script and spec; it is
+> supported from source, and packaged macOS builds are untested.
+
+The analysis pipeline itself runs on the **server**; the executable only wraps
+`client/gui.py`, so you can also run `python client/gui.py` directly on any
+platform with PySide6 installed.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File build\build_windows.ps1
@@ -27,7 +31,7 @@ powershell -ExecutionPolicy Bypass -File build\build_windows.ps1
 | `client/gui.py`, `hvFinder.ico` | **yes** |
 | `client/settings.ini` defaults | **yes** (onefile bundles a copy) |
 | `server/configs/config2.yaml` | **yes** (the GUI reads it and uploads it to the server) |
-| `server/*.py` (pipeline code) | **no** — it runs on the server, not inside the exe |
+| `server/*.py` (pipeline code) | **no** — the pipeline runs on the server |
 | `server/configs/species_aliases.csv` | no separate step (it is bundled with `server/configs`) |
 
 ## Option A — a Windows machine (recommended for Windows releases)
@@ -104,8 +108,8 @@ Notes:
   attribute (`xattr -d com.apple.quarantine dist/hvFinder`) and codesign +
   notarise it before distributing.
 - on Linux the Qt platform plugin needs the usual desktop libraries
-  (`libGL`, `libEGL`, `xcb`); a headless server without an X/Wayland session
-  cannot run the GUI even though the build succeeds.
+  (`libGL`, `libEGL`, `xcb`); a headless server needs an X/Wayland session to
+  display the GUI even though the build succeeds.
 - the icon is applied on Windows only — macOS wants `.icns` and Linux ignores
   icons for executables.
 
@@ -127,8 +131,8 @@ The workflow assumes the repository root contains the package directories
 
 Every path is derived from PyInstaller's injected `SPECPATH`: the entry point is
 `client/gui.py`, the bundled data are `client/settings.ini` and `server/configs`,
-and `pathex=[REPO]`. Missing resources are skipped instead of aborting the build,
-and the icon is optional, so the build works from any working directory.
+and `pathex=[REPO]`. Missing resources are skipped and the icon is optional, so
+the build works from any working directory.
 
 ## File encodings
 
@@ -154,11 +158,11 @@ status bar stays **"UTF-8 with BOM"**.
 
 1. `settings.ini` is resolved next to the executable (next to the script when run
    from source); the build copies it into `dist\`, and a onefile build releases a
-   bundled copy on first start if none is present.
+   bundled copy on first start when the file is absent.
 2. `pip install -e .` also works and exposes `hvfinder-gui`, `pathogen_detect`,
-   `mNGS_pip` and `get_script_base`; the build does not depend on it.
+   `mNGS_pip` and `get_script_base`.
 3. A onefile PySide6 build is roughly 50 MB and takes 3-8 s to start the first time
    (it unpacks into a temporary directory).
 4. Some antivirus products flag PyInstaller onefile binaries heuristically; sign
    the executable before distributing it widely.
-5. `upx=True` is set but PyInstaller simply skips compression when UPX is absent.
+5. `upx=True` is set; PyInstaller silently skips compression when UPX is missing.

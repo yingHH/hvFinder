@@ -1,8 +1,8 @@
 # Reference data
 
-The databases are **not** part of this repository (size and redistribution
-licensing). Create the layout below and point `server/configs/config2.yaml`
-(or the GUI) at it.
+The databases are distributed separately (size and redistribution licensing).
+Create the layout below and point `server/configs/config2.yaml` (or the GUI) at
+it.
 
 ```
 data/
@@ -28,8 +28,8 @@ Taxonomy web search or the E-utilities API.
 ## 2. `hvn` — high pathogenic virus nucleotide database (BLASTN)
 
 `hvn` (hv-**n**ucleotide) is a curated nucleotide database of highly pathogenic
-viruses, **not** a general-purpose `nt` / viral `nt` dump. `hvn.fa` holds the
-reference sequences; build the BLAST database next to it:
+viruses. `hvn.fa` holds the reference sequences; build the BLAST database next
+to it:
 
 ```bash
 makeblastdb -in data/hvn/hvn.fa -dbtype nucl -out data/hvn/hvn.fa
@@ -53,7 +53,7 @@ diamond makedb --in hvp.faa --db data/hvp/hvp.dmnd --threads 16 \
 accession-mapping distributions. Record the taxdump release date alongside the
 database — it determines how taxids are resolved.
 
-## 4. Comprehensive database (`nr.dmnd`) — NCBI nr, unchanged
+## 4. Comprehensive database (`nr.dmnd`) — NCBI nr
 
 ```bash
 diamond makedb --in nr.faa --db nr.dmnd --threads 16 --taxonmap ... --taxonnodes ... --taxonnames ...
