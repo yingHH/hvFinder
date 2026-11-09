@@ -145,6 +145,62 @@ def parse_detection_results(content):
     return results, has_taxid
 
 
+DETECTION_RESULTS_FILE = "detection_results.tsv"
+PATHOGEN_FOLDER_DEFAULT = "pathogen_results"
+PATHOGEN_FOLDER_SCRIPT = "pathogen"
+
+
+def detection_result_candidates(project_dir, folder_name):
+    """Result directories tried by `View Results`, in priority order.
+
+    The order mirrors the fallback chain of `_status_probe_command`:
+      1. the folder typed in Tab 3 ("Folder Name") -- where a GUI-launched run writes;
+      2. `<project>/pathogen` -- the convention of the command-line / batch scripts;
+      3. `<project>/pathogen_results` -- the GUI template default.
+
+    The server's `--output` is required and has no default, so the name can only be
+    discovered by probing. Pure function so it can be unit-tested without SSH / Qt.
+    """
+    project = (project_dir or "").rstrip("/")
+    if not project:
+        return []
+    out = []
+    for name in (folder_name, PATHOGEN_FOLDER_SCRIPT, PATHOGEN_FOLDER_DEFAULT):
+        name = (name or "").strip().strip("/")
+        if not name:
+            continue
+        path = f"{project}/{name}"
+        if path not in out:
+            out.append(path)
+    return out
+
+
+def parse_result_lookup(text):
+    """Parse the remote reply used by `on_view_pathogen_results`.
+
+    Returns `(status, hit_dir, body)` where `status` is one of `hit` / `missing` /
+    `error`. Remote protocol (probe + fetch in a single SSH round-trip):
+
+      - first line `HIT <dir>` followed by the body of that directory's
+        `detection_results.tsv` -> ("hit", dir, body)
+      - `MISSING`: no candidate directory has the file -> ("missing", "", "")
+      - anything else (connection failure / empty output) -> ("error", "", raw)
+
+    `missing` and `hit` with a header-only body are two different situations: the
+    former means the folder name did not match, only the latter means the run
+    finished and nothing passed the thresholds. They must not share one message.
+    """
+    lines = (text or "").splitlines()
+    if not lines:
+        return "error", "", ""
+    head = lines[0].strip()
+    if head.startswith("HIT "):
+        return "hit", head[4:].strip(), "\n".join(lines[1:])
+    if head == "MISSING":
+        return "missing", "", ""
+    return "error", "", text or ""
+
+
 def app_settings_path():
     """
     Absolute path of settings.ini.
@@ -1554,37 +1610,70 @@ class MainWindow(QMainWindow):
         if not self.current_project_dir:
             QMessageBox.warning(self, "Path Error", "No project folder selected!")
             return
-        
-        results_file = f"{self.current_project_dir}/{self.pathogen_output_folder_edit.text().strip()}/detection_results.tsv"
-        
-        # Try to read results from remote
+
+        candidates = detection_result_candidates(
+            self.current_project_dir,
+            self.pathogen_output_folder_edit.text())
+
+        probe = ("for d in " + " ".join(shlex.quote(c) for c in candidates) + "; do "
+                 'if [ -f "$d/' + DETECTION_RESULTS_FILE + '" ]; then '
+                 'echo "HIT $d"; cat "$d/' + DETECTION_RESULTS_FILE + '"; exit 0; fi; '
+                 'done; echo MISSING')
+
         try:
             pk = _paramiko()
             ssh = pk.SSHClient()
             ssh.set_missing_host_key_policy(pk.AutoAddPolicy())
             ssh.connect(self.host_edit.text().strip(), port=int(self.port_edit.text()),
                        username=self.user_edit.text().strip(), password=self.pwd_edit.text(), timeout=10)
-            
-            stdin, stdout, stderr = ssh.exec_command(f"cat {results_file}")
-            content = stdout.read().decode('utf-8')
-            ssh.close()
-            
-            old_header_v1 = "Virus_Name\tTaxID\tCoverage\tDepth\tReads_Count\tContigs_Count\tContig_IDs"
-            old_header_v2 = "Virus_Name\tTaxID\tBest_Hit_Seq\tCoverage(%)\tDepth\tContig_ID"
-            new_header = "Virus_Seq\tBest_Hit_Seq\tCoverage(%)\tDepth\tContig_ID"
-            if not content or content.strip() == old_header_v1 or content.strip() == old_header_v2 or content.strip() == new_header:
-                QMessageBox.information(self, "No Results", "No pathogen detection results found.")
-                return
 
-            results, has_taxid = parse_detection_results(content)
-            if not results:
-                QMessageBox.information(self, "No Results", "No pathogen detected.")
-                return
-            dialog = ResultsDialog(results, self.current_project_dir, has_taxid, self)
-            dialog.exec_()
+            stdin, stdout, stderr = ssh.exec_command(probe)
+            raw = stdout.read().decode('utf-8', 'replace')
+            ssh.close()
 
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Failed to read results:\n{str(e)}")
+            return
+
+        status, hit_dir, content = parse_result_lookup(raw)
+
+        if status == "missing":
+            QMessageBox.information(
+                self, "No Results File",
+                "No {name} found under:\n{dirs}\n\n"
+                "This means the result folder name does not match (or detection has "
+                "not finished yet) — it does not mean the sample is negative."
+                .format(name=DETECTION_RESULTS_FILE, dirs="\n".join(candidates)))
+            return
+
+        if status == "error":
+            QMessageBox.warning(self, "Error",
+                                f"Failed to read results:\n{content.strip()[:400]}")
+            return
+
+        self.pathogen_log_text.append(f"📄 results: {hit_dir}/{DETECTION_RESULTS_FILE}")
+
+        old_header_v1 = "Virus_Name\tTaxID\tCoverage\tDepth\tReads_Count\tContigs_Count\tContig_IDs"
+        old_header_v2 = "Virus_Name\tTaxID\tBest_Hit_Seq\tCoverage(%)\tDepth\tContig_ID"
+        new_header = "Virus_Seq\tBest_Hit_Seq\tCoverage(%)\tDepth\tContig_ID"
+        stripped = (content or "").strip()
+        if not stripped or stripped in (old_header_v1, old_header_v2, new_header):
+            QMessageBox.information(
+                self, "No Pathogen",
+                "Detection finished, but no pathogen passed the thresholds.\n\n"
+                f"{hit_dir}/{DETECTION_RESULTS_FILE}")
+            return
+
+        results, has_taxid = parse_detection_results(content)
+        if not results:
+            QMessageBox.warning(
+                self, "Unexpected Format",
+                "Results file exists but could not be parsed "
+                "(expected columns: Virus_Seq / Best_Hit_Seq / Coverage(%) / Depth / "
+                f"Contig_ID).\n\n{hit_dir}/{DETECTION_RESULTS_FILE}")
+            return
+        dialog = ResultsDialog(results, hit_dir, has_taxid, self)
+        dialog.exec_()
 
     def get_remote_script_base(self, timeout=15):
         """
