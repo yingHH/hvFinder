@@ -95,25 +95,8 @@ bedtools:
 blastdbcmd:
   bin: "blastdbcmd"
 
-# ============================================================
 # 8. Database paths (databases)
-# ------------------------------------------------------------
 databases:
   virus_taxids: data/virus_taxids_high_pathogenic.txt
   blastn_index: data/hvn/hvn.fa
 # The GUI's `Sync DB to Server` button writes the database settings from
-# settings.ini into this section of the server-side file:
-#
-#   databases:
-#     diamond_db:    <diamond.db_path>
-#     bowtie2_index: <bowtie2.params.index_path>
-#     blastn_index:  <prefix of the BLASTN hvn database, needs .nhr/.nin/.nsq>
-#     virus_taxids:  <list of target taxids>
-#
-# This section is the single source of database paths:
-#   both stage scripts read it
-#   when --taxids / --virus-index are not given, these values are used;
-#   pathogen_detect.py reads it too (CLI values still win).
-# diamond_db / bowtie2_index are deliberately absent: they duplicate
-# diamond.db_path / bowtie2.params.index_path and would duplicate GUI fields.
-# ============================================================
