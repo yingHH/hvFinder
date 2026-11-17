@@ -335,6 +335,7 @@ class MNGSPipeline:
         evalue = params.get('evalue', '1e-3')
         sens = params.get('sensitivity', '--sensitive')
         k = int(params.get('max_target_seqs', 1) or 1)
+        min_len = int(getattr(self, 'prescreen_min_aln_len', 50) or 0)
         hits = f"{self.output_prefix}.prescreen.tsv"
 
         cmd = f"""
@@ -346,21 +347,35 @@ class MNGSPipeline:
             {sens} \\
             --evalue {evalue} \\
             --max-target-seqs {k} \\
-            --outfmt 6 qseqid sseqid pident evalue
+            --outfmt 6 qseqid sseqid pident evalue length
         """
         self.logger.info(
-            "PRESCREEN: db=%s evalue=%s k=%d", db, evalue, k)
+            "PRESCREEN: db=%s evalue=%s k=%d min_aln_len=%d", db, evalue, k,
+            min_len)
         res = self._execute_command("prescreen_diamond", cmd)
         if not res.success:
             return res
 
         keep = set()
+        n_dropped_short = 0
         if os.path.exists(hits):
             with open(hits, 'r', encoding='utf-8') as fh:
                 for line in fh:
-                    qid = line.split('\t', 1)[0].strip()
-                    if qid:
-                        keep.add(qid)
+                    p = line.rstrip('\n').split('\t')
+                    if not p or not p[0].strip():
+                        continue
+                    if min_len > 0 and len(p) >= 5:
+                        try:
+                            if float(p[4]) < min_len:
+                                n_dropped_short += 1
+                                continue
+                        except ValueError:
+                            pass
+                    keep.add(p[0].strip())
+                if min_len > 0:
+                    self.logger.info(
+                        "PRESCREEN: %d hit(s) dropped by min_aln_len=%d aa",
+                        n_dropped_short, min_len)
 
         n_in = n_out = 0
         with open(in_fa, 'r', encoding='utf-8') as fh, \
@@ -571,6 +586,12 @@ def main():
     parser.add_argument("--prescreen-db", default=None,
                         help="Protein DIAMOND DB for the prescreen stage "
                              "(overrides config prescreen.db_path)")
+    parser.add_argument("--prescreen-min-aln-len", type=int, default=50,
+                        help="Minimum protein alignment length (aa) for a "
+                             "prescreen hit to keep its contig; 0 disables "
+                             "(default 50, a no-op on all libraries measured "
+                             "so far: shortest observed true/FP alignment is "
+                             "123 aa)")
 
     args = parser.parse_args()
     
@@ -607,6 +628,7 @@ def main():
             args.node_mem_gb)
     if getattr(args, 'prescreen_db', None):
         pipe.prescreen_db = args.prescreen_db
+    pipe.prescreen_min_aln_len = args.prescreen_min_aln_len
     try:
         pipe.pre_check(args.fq1, args.fq2)
         pipe.start_pipeline(args.fq1, args.fq2, args.threads, no_resume=args.no_resume)

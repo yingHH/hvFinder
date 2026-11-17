@@ -131,6 +131,31 @@ database), output-directory writability and free space, and whether `sbatch`
 exists. Exit code `0` = ready (`[WARN]` items are optional), `1` = at least one
 `[FAIL]`.
 
+---
+
+## Building the benchmark libraries
+
+`tests/repro/` holds the scripts used to build the evaluation libraries, so
+that the negative-control, cross-reactivity and detection-limit experiments can
+be reproduced from public data:
+
+| Script | Purpose |
+|---|---|
+| `tests/repro/fetch_spike_sequences.py` | download the RefSeq references of the five near-neighbour viruses (NCBI E-utilities, read-only) |
+| `tests/repro/make_in_silico_mixes.py` | spike those references into a negative background as exact read-pair counts (1e2 / 1e3 / 1e4) with a fixed seed |
+| `tests/repro/make_dilution_series.py` | expand three parent libraries into the dilution manifest (3 samples x 10 fractions x 3 seeds) |
+| `tests/repro/make_dilution_fastq.py` | down-sample each dilution point with `seqtk sample` into paired FASTQ |
+
+```bash
+python tests/repro/fetch_spike_sequences.py --dry-run
+python tests/repro/make_in_silico_mixes.py --help
+python tests/repro/make_dilution_series.py --dry-run
+python tests/repro/make_dilution_fastq.py --dry-run
+```
+
+All four are standard-library-only Python scripts and are safe to run locally;
+the FASTQ files they produce are then uploaded to the server.
+
 ## Required data
 
 Reference databases are distributed separately — see [`data/README.md`](data/README.md)
@@ -222,6 +247,10 @@ Verdicts are `POSITIVE` / `INDETERMINATE` / `NEGATIVE`. `INDETERMINATE` means th
 evidence passed every gate, but the margin over the thresholds is below
 `margin_positive`.
 
+The margin is the smaller of two ratios — the total supporting reads and the length-weighted
+mean depth of all reported contigs of that virus, not of the best contig — each divided by
+its threshold.
+
 ---
 
 ## Repository layout
@@ -230,7 +259,7 @@ evidence passed every gate, but the margin over the thresholds is below
 client/            PySide6 GUI: SSH, submit, poll, view results
 server/            pipeline: mNGS_pip.py (stage 1), pathogen_detect.py (stage 2)
   configs/         config2.yaml (all tool paths & parameters), species_aliases.csv
-tests/             server-side self-check (selfcheck.sh: tools, data, permissions)
+tests/             server-side self-check (selfcheck.sh) + benchmark library builders (repro/)
 build/             PyInstaller build scripts (Windows / Linux; macOS = same script) + conda env
 hvFinder.spec      PyInstaller spec (working-directory independent)
 pyproject.toml     packaging metadata and optional extras (client / build)

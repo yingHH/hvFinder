@@ -381,7 +381,8 @@ def count_db_sequences(db_path, blastdbcmd_bin='blastdbcmd'):
     return len([line for line in result.stdout.splitlines() if line.strip()])
 
 
-def filter_diamond(diamond_tsv, taxids, pident, evalue, logger=None):
+def filter_diamond(diamond_tsv, taxids, pident, evalue, logger=None,
+                   min_aln_len=0):
     """Filter diamond results by taxid and parameters
     
     Args:
@@ -398,6 +399,7 @@ def filter_diamond(diamond_tsv, taxids, pident, evalue, logger=None):
     
     # Statistics for pre-filter summary
     total_hits = 0
+    n_short = 0
     all_pidents = []
     all_qcovs = []
     all_evalues = []
@@ -412,6 +414,7 @@ def filter_diamond(diamond_tsv, taxids, pident, evalue, logger=None):
             sseqid = fields[1]  # reference ID
             qcovhsp = float(fields[2]) if fields[2] else 0  # qcovhsp is 3rd column in config2.yaml outfmt
             pident_val = float(fields[3]) if fields[3] else 0  # pident is 4th column
+            aln_len = int(float(fields[6])) if fields[6] else 0  # length is 7th column
             evalue_val = float(fields[11]) if fields[11] else 1  # evalue is 12th column
             staxids = fields[12]  # taxonomy ID is 13th column
             sscinames = fields[13]  # scientific name is 14th column
@@ -432,6 +435,9 @@ def filter_diamond(diamond_tsv, taxids, pident, evalue, logger=None):
                 continue
             if evalue_val > evalue:
                 continue
+            if min_aln_len and aln_len < min_aln_len:
+                n_short += 1
+                continue
             
             # Store best match for each contig
             if qseqid not in filtered_contigs:
@@ -441,6 +447,7 @@ def filter_diamond(diamond_tsv, taxids, pident, evalue, logger=None):
                     'staxids': staxids,
                     'pident': pident_val,
                     'qcov': qcovhsp,
+                    'aln_len': aln_len,
                     'evalue': evalue_val
                 }
             else:
@@ -452,6 +459,7 @@ def filter_diamond(diamond_tsv, taxids, pident, evalue, logger=None):
                         'staxids': staxids,
                         'pident': pident_val,
                         'qcov': qcovhsp,
+                        'aln_len': aln_len,
                         'evalue': evalue_val
                     }
     
@@ -463,6 +471,9 @@ def filter_diamond(diamond_tsv, taxids, pident, evalue, logger=None):
         logger.info(f"  Identity: min={min(all_pidents):.1f}%, max={max(all_pidents):.1f}%, avg={sum(all_pidents)/len(all_pidents):.1f}%")
         logger.info(f"  Coverage: min={min(all_qcovs):.1f}%, max={max(all_qcovs):.1f}%, avg={sum(all_qcovs)/len(all_qcovs):.1f}%")
         logger.info(f"  E-value: min={min(all_evalues):.2e}, max={max(all_evalues):.2e}, median={sorted(all_evalues)[len(all_evalues)//2]:.2e}")
+        if min_aln_len:
+            logger.info(f"  Min alignment length: {min_aln_len} aa "
+                        f"({n_short} hit(s) dropped for being shorter)")
         logger.info("-" * 50)
     
     return filtered_contigs
@@ -1047,7 +1058,7 @@ def evaluate_detection(per_contig, subject_lengths, thr, logger=None):
         if n_contigs == 1:
             flags.append('single_contig')
         if thr['min_contig_breadth'] > 0 and 1.0 <= max_breadth < 1.5 * thr['min_contig_breadth']:
-            flags.append('low_breadth')
+            flags.append('breadth_near_threshold')
         if merged and len(merged) < 2:
             flags.append('single_locus')
         if dropped:
@@ -1291,7 +1302,9 @@ def run_blastn_first_flow(args, taxids, logger, checkpoints, checkpoint_file,
                               args.diamond_bin, logger):
             sys.exit(1)
         logger.info("Step 4: filtering nr DIAMOND results by taxid/pident/evalue")
-        filtered = filter_diamond(diamond_tsv, taxids, args.pident, args.evalue, logger)
+        filtered = filter_diamond(diamond_tsv, taxids, args.pident, args.evalue,
+                                  logger,
+                                  min_aln_len=getattr(args, 'diamond_min_aln_len', 0))
         diagnose_diamond_filter(diamond_tsv, taxids, args.pident, args.evalue, logger)
         logger.info("nr pass contigs: %d", len(filtered))
         with open(step4_cache, 'w', encoding='utf-8') as f:
@@ -1354,7 +1367,8 @@ def run_legacy_flow(args, taxids, logger, checkpoints, checkpoint_file,
         logger.info("Step 2: Filtering diamond results...")
         logger.info(f"Filters: pident>={args.pident}%, evalue<={args.evalue}")
         filtered_contigs = filter_diamond(args.diamond, taxids, args.pident,
-                                          args.evalue, logger)
+                                          args.evalue, logger,
+                                          min_aln_len=getattr(args, 'diamond_min_aln_len', 0))
         logger.info(f"Found {len(filtered_contigs)} virus-related contigs after filtering")
         logger.info("nr pass contigs: %d", len(filtered_contigs))
         diagnose_diamond_filter(args.diamond, taxids, args.pident,
@@ -1520,6 +1534,12 @@ def main():
     parser.add_argument("--evalue", type=float, default=1e-2,
                         help="Diamond e-value threshold; default matches the "
                              "archived run (1e-02)")
+    parser.add_argument("--diamond-min-aln-len", type=int, default=0,
+                        help="Minimum protein alignment length (aa) in the nr "
+                             "DIAMOND step; 0 disables the filter (default). "
+                             "Measured: true hits 437-2244 aa, near-neighbour "
+                             "cross-hits 123-167 aa, so 0-100 aa keeps every "
+                             "true hit (see derived/t8_minaln_sweep.csv)")
     
     parser.add_argument("--blastn-identity", type=float, default=70, help="BLASTN identity threshold (%%)")
     parser.add_argument("--blastn-evalue", type=float, default=1e-4, help="BLASTN e-value threshold")
