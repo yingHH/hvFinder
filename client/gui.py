@@ -13,6 +13,7 @@ import sys
 import shlex
 import shutil
 import time
+import pathlib
 import yaml
 import configparser
 from datetime import datetime
@@ -37,6 +38,47 @@ def _paramiko():
     """
     import paramiko
     return paramiko
+
+
+def resolve_ssh_auth(host, port, user, pwd, log=None):
+    """
+    Turn the content of the password box into real connection parameters.
+
+    If it points at an existing file, that file is used as the SSH private
+    key (`~` is expanded); otherwise the text is used as the password.
+
+    Returns:
+        (host, port, user, password, key_filename or None)
+    """
+    text = (pwd or '').strip()
+    if text:
+        candidate = pathlib.Path(text).expanduser()
+        if candidate.is_file():
+            if log:
+                log(f"🔑 Using private key {candidate}")
+            return host, port, user, None, candidate
+    return host, port, user, pwd, None
+
+
+def connect_ssh(pk, host, port, user, pwd, timeout=10, log=None, **kwargs):
+    """
+    Connect and return an SSHClient; `pwd` may be a password or the path of
+    a private key file.
+    """
+    host, port, user, password, key_file = resolve_ssh_auth(host, port, user, pwd, log)
+    ssh = pk.SSHClient()
+    ssh.set_missing_host_key_policy(pk.AutoAddPolicy())
+    params = dict(port=port, username=user, timeout=timeout)
+    if host:
+        params['hostname'] = host
+    if key_file:
+        params['key_filename'] = str(key_file)
+        params['look_for_keys'] = False
+    else:
+        params['password'] = password
+    params.update(kwargs)
+    ssh.connect(**params)
+    return ssh
 
 
 def parse_script_base(text):
@@ -270,9 +312,8 @@ class SSHWorker(QThread):
         ssh = None
         try:
             pk = _paramiko()
-            ssh = pk.SSHClient()
-            ssh.set_missing_host_key_policy(pk.AutoAddPolicy())
-            ssh.connect(self.host, port=self.port, username=self.user, password=self.pwd, timeout=10)
+            ssh = connect_ssh(pk, self.host, self.port, self.user, self.pwd,
+                              timeout=10, log=self.emit_log)
             
             self.status_signal.emit(1)
             self.emit_log(f"✅ Connected to {self.host}")
@@ -393,11 +434,10 @@ class SSHProbe(QThread):
     def run(self):
         try:
             pk = _paramiko()
-            ssh = pk.SSHClient()
-            ssh.set_missing_host_key_policy(pk.AutoAddPolicy())
-            ssh.connect(
-                self.host, port=self.port, username=self.user, password=self.pwd,
-                timeout=self.timeout, banner_timeout=self.timeout,
+            ssh = connect_ssh(
+                pk, self.host, self.port, self.user, self.pwd,
+                timeout=self.timeout,
+                banner_timeout=self.timeout,
                 auth_timeout=self.timeout, look_for_keys=False, allow_agent=False,
             )
             ssh.close()
@@ -425,11 +465,10 @@ class RemoteQuery(QThread):
     def run(self):
         try:
             pk = _paramiko()
-            ssh = pk.SSHClient()
-            ssh.set_missing_host_key_policy(pk.AutoAddPolicy())
-            ssh.connect(
-                self.host, port=self.port, username=self.user, password=self.pwd,
-                timeout=self.timeout, banner_timeout=self.timeout,
+            ssh = connect_ssh(
+                pk, self.host, self.port, self.user, self.pwd,
+                timeout=self.timeout,
+                banner_timeout=self.timeout,
                 auth_timeout=self.timeout, look_for_keys=False, allow_agent=False,
             )
             try:
@@ -536,7 +575,7 @@ PRESET_VIRUS_INDEXES = {
 
 PRESET_TAXID_FILES = {
     "Default Virus TaxIDs": "data/default_virus_taxids.txt",
-    "High Pathogenic Virus TaxIDs": "data/virus_taxids_high_pathogenic.txt",
+    "High Pathogenic Virus TaxIDs": "data/hv.taxid2name",
     "Custom": ""
 }
 
@@ -636,6 +675,10 @@ class MainWindow(QMainWindow):
         self.port_edit = QLineEdit("22")
         self.user_edit = QLineEdit()
         self.pwd_edit = QLineEdit(); self.pwd_edit.setEchoMode(QLineEdit.Password)
+        self.pwd_edit.setPlaceholderText("password, or path to a private key file")
+        self.pwd_edit.setToolTip(
+            "Enter the SSH password, or the path of a private key file\n"
+            "(e.g. ~/.ssh/id_ed25519). A file path is used as the SSH key.")
         auth_form.addRow("Host IP:", self.host_edit)
         auth_form.addRow("Port:", self.port_edit)
         auth_form.addRow("Username:", self.user_edit)
@@ -1114,11 +1157,9 @@ class MainWindow(QMainWindow):
         Run a remote command synchronously and return (stdout, stderr).
         """
         pk = _paramiko()
-        ssh = pk.SSHClient()
-        ssh.set_missing_host_key_policy(pk.AutoAddPolicy())
-        ssh.connect(self.host_edit.text().strip(), port=int(self.port_edit.text()),
-                    username=self.user_edit.text().strip(),
-                    password=self.pwd_edit.text(), timeout=timeout)
+        ssh = connect_ssh(pk, self.host_edit.text().strip(), int(self.port_edit.text()),
+                          self.user_edit.text().strip(), self.pwd_edit.text(),
+                          timeout=timeout, log=self.log_text.append)
         try:
             _, stdout, stderr = ssh.exec_command(command, timeout=timeout)
             return (stdout.read().decode("utf-8", "replace"),
@@ -1622,10 +1663,9 @@ class MainWindow(QMainWindow):
 
         try:
             pk = _paramiko()
-            ssh = pk.SSHClient()
-            ssh.set_missing_host_key_policy(pk.AutoAddPolicy())
-            ssh.connect(self.host_edit.text().strip(), port=int(self.port_edit.text()),
-                       username=self.user_edit.text().strip(), password=self.pwd_edit.text(), timeout=10)
+            ssh = connect_ssh(pk, self.host_edit.text().strip(), int(self.port_edit.text()),
+                              self.user_edit.text().strip(), self.pwd_edit.text(),
+                              timeout=10)
 
             stdin, stdout, stderr = ssh.exec_command(probe)
             raw = stdout.read().decode('utf-8', 'replace')

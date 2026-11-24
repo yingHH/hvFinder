@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-expand_dilution_series.py
-=========================
-Expand the three parent samples of `03b_baseline_three_samples.csv` into the per-run
-rows of `02_dilution_series_manifest.csv` (default 3 samples x 10 fractions x 3 seeds = 90 rows).
+make_dilution_series.py
+========================
+Expand a baseline table (one row per parent library) into the per-run rows of a
+dilution series (default 3 parents x 10 fractions x 3 seeds = 90 rows).
 
 Usage:
-    python expand_dilution_series.py --dry-run      # preview the table
-    python expand_dilution_series.py                # write 02_dilution_series_manifest.csv
+    python make_dilution_series.py --dry-run      # preview the table
+    python make_dilution_series.py --baseline baseline.csv --out manifest.csv
 
 Key conventions:
-    * `Total Reads` in test_result.csv equals the SRA `spots`, i.e. read **pairs** for PE data
-      (verified with E-utilities for SRR29741326 / SRR37931581 / SRR25133377).
+    * `Total Reads` of a public PE run equals the SRA `spots`, i.e. read **pairs**.
       Hence target_total_pairs = round(spots x fraction); do not divide by 2 again.
     * expected_target_reads is left empty: the target read count can only be measured
       from the fraction=1.0 run (Reads_Mapped in detection_virus_summary.tsv); other points scale with it.

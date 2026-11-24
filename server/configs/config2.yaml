@@ -97,6 +97,5 @@ blastdbcmd:
 
 # 8. Database paths (databases)
 databases:
-  virus_taxids: data/virus_taxids_high_pathogenic.txt
+  virus_taxids: data/hv.taxid2name
   blastn_index: data/hvn/hvn.fa
-# The GUI's `Sync DB to Server` button writes the database settings from

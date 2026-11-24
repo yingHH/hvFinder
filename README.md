@@ -158,19 +158,19 @@ the FASTQ files they produce are then uploaded to the server.
 
 ## Required data
 
-Reference databases are distributed separately — see [`data/README.md`](data/README.md)
-for the expected layout; the short version:
+The `hvn` / `hvp` / `nr` databases and the host index are distributed separately —
+see [`data/README.md`](data/README.md) for the expected layout; the short version:
 
 | Item | Purpose |
 |---|---|
-| `data/virus_taxids_high_pathogenic.txt` | target taxids, one per line (`#` comments allowed) |
+| `data/hv.taxid2name` | target taxids + virus names (ships with the package; `#` comments allowed) |
 | `data/hvn/hvn.fa` (+ BLAST DB) | **hvn** — high pathogenic virus nucleotide DB, used by BLASTN for confirmation |
 | `data/hvp/hvp.dmnd` | **hvp** — high pathogenic virus protein DB, used by the DIAMOND pre-screen |
 | `data/databases/nr.dmnd` | NCBI nr, for the comprehensive DIAMOND pass |
 | `host_idx/host_idx.*` | bowtie2 host index |
 
 Taxids can be looked up in NCBI Taxonomy (web search or the E-utilities API);
-the file itself is plain text, one taxid per line.
+each line of the file is `<taxid> <virus name>`.
 
 ---
 
@@ -216,7 +216,7 @@ python server/mNGS_pip.py -1 R1.fq.gz -2 R2.fq.gz -o out -t 64 \
 # stage 2 — detection (BLASTN vs hvn → nr DIAMOND → coverage → report)
 python server/pathogen_detect.py --fq1 R1.fq.gz --fq2 R2.fq.gz \
     --megahit out --diamond out/nr_hits.tsv --output out/pathogen \
-    --taxids data/virus_taxids_high_pathogenic.txt \
+    --taxids data/hv.taxid2name \
     --virus-index data/hvn/hvn.fa \
     --threads 64 -c server/configs/config2.yaml
 ```
@@ -251,6 +251,11 @@ The margin is the smaller of two ratios — the total supporting reads and the l
 mean depth of all reported contigs of that virus, not of the best contig — each divided by
 its threshold.
 
+The default profile (`P1_two_tier`) applies these gates: contig length ≥ 300 bp, ≥ 10
+supporting reads, mean depth ≥ 1×, contig breadth ≥ 50%, genome breadth ≥ 10%, and
+`margin ≥ 2` for `POSITIVE` (`1 ≤ margin < 2` gives `INDETERMINATE`). `P2_stringent`
+tightens every gate; `P0_current_default` disables gating.
+
 ---
 
 ## Repository layout
@@ -258,12 +263,13 @@ its threshold.
 ```
 client/            PySide6 GUI: SSH, submit, poll, view results
 server/            pipeline: mNGS_pip.py (stage 1), pathogen_detect.py (stage 2)
-  configs/         config2.yaml (all tool paths & parameters), species_aliases.csv
+  configs/         config2.yaml (all tool paths & parameters),
+                   species_table.csv (species composition + synonym names; fills the Virus_Species columns by default)
 tests/             server-side self-check (selfcheck.sh) + benchmark library builders (repro/)
 build/             PyInstaller build scripts (Windows / Linux; macOS = same script) + conda env
 hvFinder.spec      PyInstaller spec (working-directory independent)
 pyproject.toml     packaging metadata and optional extras (client / build)
-data/              reference databases (distributed separately) — see data/README.md
+data/              reference data: hv.taxid2name ships here; databases are distributed separately (see data/README.md)
 dist/              pre-built standalone client (Windows .exe, Linux binary)
 ```
 

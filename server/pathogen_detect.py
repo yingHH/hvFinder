@@ -243,27 +243,6 @@ def load_taxids(taxid_file):
 # ---------------------------------------------------------------------------
 # Species composition table and annotation
 # ---------------------------------------------------------------------------
-DEFAULT_SPECIES_ALIASES = {
-    "zaire ebolavirus": "EBOV", "ebola virus": "EBOV", "zaire virus": "EBOV",
-    "sudan ebolavirus": "SUDV", "sudan virus": "SUDV",
-    "bundibugyo ebolavirus": "BDBV", "bundibugyo virus": "BDBV",
-    "tai forest ebolavirus": "TAFV", "taï forest ebolavirus": "TAFV",
-    "reston ebolavirus": "RESTV", "reston virus": "RESTV",
-    "bombali ebolavirus": "BOMV", "bombali virus": "BOMV",
-    "marburg virus": "MARV", "marburg marburgvirus": "MARV",
-    "hendra virus": "HeV", "hendra henipavirus": "HeV",
-    "nipah virus": "NiV", "nipah henipavirus": "NiV",
-    "lassa virus": "LASV", "lassa mammarenavirus": "LASV",
-    "machupo virus": "MACV", "machupo mammarenavirus": "MACV",
-    "hantaan virus": "HTNV", "hantaan orthohantavirus": "HTNV",
-    "seoul virus": "SEOV", "seoul orthohantavirus": "SEOV",
-    "crimean congo hemorrhagic fever virus": "CCHFV",
-    "crimean congo haemorrhagic fever virus": "CCHFV",
-    "congo hemorrhagic fever virus": "CCHFV",
-    "crimean-congo hemorrhagic fever virus": "CCHFV",
-    "monkeypox virus": "MPXV", "mpox virus": "MPXV",
-    "variola virus": "VARV", "smallpox virus": "VARV",
-}
 
 
 def _norm_name(text):
@@ -275,11 +254,13 @@ def _norm_name(text):
 
 def load_species_table(path):
     """
-    Read the species table (Family, Genus, Species, Acronym, sequence count).
+    Read the species table (Family, Genus, Species, Acronym, sequence count,
+    optional Aliases).
 
     Conventions: `#` starts a comment line; the first row is the header; empty
     Family/Genus cells inherit the row above; a thousands separator may split a
-    number across columns (e.g. 8,749).
+    number across columns (e.g. 8,749); the optional last column holds the
+    `;`-separated synonyms of the species.
     """
     rows = []
     family = genus = ""
@@ -299,6 +280,9 @@ def load_species_table(path):
             if gen:
                 genus = gen
             tail = [p for p in parts[4:] if p != '']
+            aliases = []
+            if tail and any(ch.isalpha() for ch in tail[-1]):
+                aliases = [a.strip() for a in tail.pop().split(';') if a.strip()]
             n_seq = 0
             if tail:
                 try:
@@ -308,16 +292,40 @@ def load_species_table(path):
             rows.append({
                 'family': family, 'genus': genus,
                 'species': sp, 'acronym': acr, 'n_sequences': n_seq,
+                'aliases': aliases,
             })
     return rows
+
+
+def default_species_table(start=None, max_up=3):
+    """
+    Path of the bundled species-composition table; None if absent.
+
+    Searches upward from the code directory (at most `max_up` levels) for
+    `configs/species_table.csv` or `species_table.csv`, so no job script has to
+    spell out `--species-table`. Unrelated to the manuscript's Table S1.
+    """
+    here = os.path.abspath(start or os.path.dirname(os.path.abspath(__file__)))
+    for _ in range(max_up + 1):
+        for rel in (os.path.join("configs", "species_table.csv"),
+                    "species_table.csv"):
+            cand = os.path.join(here, rel)
+            if os.path.isfile(cand):
+                return os.path.normpath(cand)
+        parent = os.path.dirname(here)
+        if parent == here:
+            break
+        here = parent
+    return None
 
 
 def build_species_index(rows, alias_path=None):
     """
     Build the normalised-name -> species-row index (scientific name, acronym,
-    synonyms).
+    Aliases column). `alias_path` is an optional extra `alias,acronym` CSV for
+    temporary overrides.
     """
-    alias_map = {_norm_name(k): v for k, v in DEFAULT_SPECIES_ALIASES.items()}
+    alias_map = {}
     if alias_path and os.path.exists(alias_path):
         with open(alias_path, 'r', encoding='utf-8-sig') as f:
             for line in f:
@@ -334,10 +342,12 @@ def build_species_index(rows, alias_path=None):
     for r in rows:
         index[_norm_name(r['species'])] = r
         index[_norm_name(r['acronym'])] = r
+        for alias in r.get('aliases') or ():
+            index.setdefault(_norm_name(alias), r)
     for alias_norm, acronym in alias_map.items():
         row = by_acronym.get(acronym)
         if row:
-            index.setdefault(alias_norm, row)
+            index[alias_norm] = row
     return index
 
 
@@ -1034,7 +1044,7 @@ def evaluate_detection(per_contig, subject_lengths, thr, logger=None):
                       f"{thr['min_supporting_contigs']}")
         elif not metrics:
             call, margin = 'POSITIVE', None
-            reason = 'no numeric threshold active (legacy behaviour)'
+            reason = 'no numeric threshold active'
         else:
             ratios = [(name, (value / t) if t > 0 else float('inf'))
                       for name, value, t in metrics]
@@ -1545,10 +1555,10 @@ def main():
     parser.add_argument("--blastn-evalue", type=float, default=1e-4, help="BLASTN e-value threshold")
     parser.add_argument("--blastn-coverage", type=float, default=70, help="BLASTN coverage threshold (%%)")
 
-    parser.add_argument("--threshold-profile", default="P0_current_default",
+    parser.add_argument("--threshold-profile", default="P1_two_tier",
                         choices=sorted(THRESHOLD_PROFILES.keys()),
-                        help="Threshold preset: P0_current_default (no gating, legacy) "
-                             "/ P1_two_tier / P2_stringent")
+                        help="Threshold preset: P1_two_tier (default; gates applied) "
+                             "/ P0_current_default (all thresholds off) / P2_stringent")
     parser.add_argument("--min-contig-len", type=int, default=None,
                         help="Minimum contig length (bp) to be considered")
     parser.add_argument("--min-reads-mapped", type=int, default=None,
@@ -1568,10 +1578,13 @@ def main():
 
     parser.add_argument("--species-table", default=None,
                         help="Optional species-composition CSV "
-                             "(Family,Genus,Species,Acronym,N sequences); "
-                             "lines starting with '#' are comments")
+                             "(Family,Genus,Species,Acronym,N sequences[,Aliases]); "
+                             "lines starting with '#' are comments. "
+                             "Default: configs/species_table.csv bundled with the code "
+                             "(see default_species_table)")
     parser.add_argument("--species-alias", default=None,
-                        help="CSV of alias,acronym used to map taxid names to the species table")
+                        help="Optional extra alias,acronym CSV used to extend the "
+                             "names in the species table")
     parser.add_argument("--verify-db", action="store_true",
                         help="Count BLAST DB entries with blastdbcmd and compare to the species-table total")
     
@@ -1603,8 +1616,8 @@ def main():
     args.diamond_db = args.diamond_db or _dm.get('db_path')
     args.diamond_bin = args.diamond_bin or _dm.get('bin') or 'diamond'
     if not args.candidates and not args.diamond:
-        parser.error("either --candidates (current order) or --diamond "
-                     "(legacy pre-computed TSV) is required")
+        parser.error("either --candidates (contigs from the pre-screen) or "
+                     "--diamond (a pre-computed DIAMOND TSV) is required")
 
     _resolved = resolve_tool_bins(
         config_data, {attr: getattr(args, attr, None) for attr in BIN_SPECS})
@@ -1654,33 +1667,36 @@ def main():
         logger.info(f"  {_attr:24s} = {getattr(args, _attr)}")
 
     species_rows, species_index = [], {}
-    default_alias = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "configs", "species_aliases.csv")
-    alias_path = args.species_alias or default_alias
-    if args.species_table:
-        if not os.path.exists(args.species_table):
-            logger.warning(f"Species table not found: {args.species_table}")
-        else:
-            try:
-                species_rows = load_species_table(args.species_table)
-                species_index = build_species_index(species_rows, alias_path)
-                total_seq = sum(r['n_sequences'] for r in species_rows)
-                logger.info(f"Species table: {len(species_rows)} species, "
-                            f"{total_seq} sequences (from --species-table)")
-                for _r in species_rows:
-                    logger.info(f"  {_r['acronym']:6s} {_r['species']:45s} "
-                                f"{_r['n_sequences']}")
-                if args.verify_db:
-                    n_db = count_db_sequences(args.virus_index, args.blastdbcmd_bin)
-                    if n_db is None:
-                        logger.warning("Could not count BLAST DB entries "
-                                       "(blastdbcmd unavailable)")
-                    elif n_db != total_seq:
-                        logger.warning(f"DB entry count {n_db} != species-table total {total_seq}")
-                    else:
-                        logger.info(f"DB entry count matches species-table total: {n_db}")
-            except Exception as exc:
-                logger.warning(f"Failed to load species table: {exc}")
+    alias_path = args.species_alias
+    species_table = args.species_table or default_species_table()
+    if species_table and not args.species_table:
+        logger.info(f"Species table: using built-in default {species_table}")
+    if not species_table:
+        logger.warning("No species table found; Virus_Species/Virus_Acronym stay NA "
+                       "(pass --species-table to enable annotation)")
+    elif not os.path.exists(species_table):
+        logger.warning(f"Species table not found: {species_table}")
+    else:
+        try:
+            species_rows = load_species_table(species_table)
+            species_index = build_species_index(species_rows, alias_path)
+            total_seq = sum(r['n_sequences'] for r in species_rows)
+            logger.info(f"Species table: {len(species_rows)} species, "
+                        f"{total_seq} sequences (from {species_table})")
+            for _r in species_rows:
+                logger.info(f"  {_r['acronym']:6s} {_r['species']:45s} "
+                            f"{_r['n_sequences']}")
+            if args.verify_db:
+                n_db = count_db_sequences(args.virus_index, args.blastdbcmd_bin)
+                if n_db is None:
+                    logger.warning("Could not count BLAST DB entries "
+                                   "(blastdbcmd unavailable)")
+                elif n_db != total_seq:
+                    logger.warning(f"DB entry count {n_db} != species-table total {total_seq}")
+                else:
+                    logger.info(f"DB entry count matches species-table total: {n_db}")
+        except Exception as exc:
+            logger.warning(f"Failed to load species table: {exc}")
     
     checkpoint_file = os.path.join(args.output, "pathogen_detect.checkpoints.json")
     

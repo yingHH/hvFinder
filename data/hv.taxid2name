@@ -1,0 +1,23 @@
+# hvFinder target taxids: high pathogenic viruses
+# Format: <taxid> <virus name>
+3052223	Henipavirus hendraense
+3052225	Henipavirus nipahense
+3052310	Mammarenavirus lassaense
+3052317	Mammarenavirus machupoense
+3052457	Orthoebolavirus bombaliense
+3052458	Orthoebolavirus bundibugyoense
+3052459	Orthoebolavirus restonense
+3052460	Orthoebolavirus sudanense
+3052461	Orthoebolavirus taiense
+3052462	Orthoebolavirus zairense
+3052480	Orthohantavirus hantanense
+3052498	Orthohantavirus seoulense
+3044783	Orthomarburgvirus
+3052505	Orthomarburgvirus marburgense
+3052518	Orthonairovirus haemorrhagiae
+10244	Monkeypox virus
+3431483	Orthopoxvirus monkeypox
+3431487	Orthopoxvirus variola
+3426323 Alphavirus western
+3426299 Alphavirus eastern
+3426322 Alphavirus venezuelan

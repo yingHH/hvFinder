@@ -20,7 +20,8 @@ ICON = os.path.join(REPO, "hvFinder.ico")
 
 datas = []
 for src, dst in ((os.path.join(REPO, "client", "settings.ini"), "."),
-                 (os.path.join(REPO, "server", "configs"), "configs")):
+                 (os.path.join(REPO, "server", "configs"), "configs"),
+                 (os.path.join(REPO, "data", "hv.taxid2name"), "data")):
     if os.path.exists(src):
         datas.append((src, dst))
 

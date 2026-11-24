@@ -32,7 +32,7 @@ powershell -ExecutionPolicy Bypass -File build\build_windows.ps1
 | `client/settings.ini` defaults | **yes** (onefile bundles a copy) |
 | `server/configs/config2.yaml` | **yes** (the GUI reads it and uploads it to the server) |
 | `server/*.py` (pipeline code) | **no** — the pipeline runs on the server |
-| `server/configs/species_aliases.csv` | no separate step (it is bundled with `server/configs`) |
+| `server/configs/species_table.csv` | no separate step (it is bundled with `server/configs`) |
 
 ## Option A — a Windows machine (recommended for Windows releases)
 

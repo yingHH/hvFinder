@@ -6,7 +6,7 @@ it.
 
 ```
 data/
-├── virus_taxids_high_pathogenic.txt              # target taxids, one per line
+├── hv.taxid2name                                 # target taxids + virus names (ships with the package)
 ├── hvn/                                          # high pathogenic virus, nucleotide
 │   ├── hvn.fa                                    # BLASTN database source
 │   └── hvn.fa.{nhr,nin,nsq}                      # makeblastdb output
@@ -20,10 +20,12 @@ host_idx/
 
 ## 1. Target taxids
 
-`virus_taxids_high_pathogenic.txt` lists the taxids hvFinder reports. One taxid per
-line; blank lines and lines starting with `#` are ignored. Genus-level taxids are
-allowed when a whole genus is in scope. Resolve names to taxids with the NCBI
-Taxonomy web search or the E-utilities API.
+`hv.taxid2name` ships with the package and lists the taxids hvFinder reports, one
+per line as `<taxid> <virus name>`; blank lines and lines starting with `#` are
+ignored. Genus-level taxids are allowed when a whole genus is in scope. To target
+a different set, edit the file or point `databases.virus_taxids` (or the GUI) at
+your own list; resolve names to taxids with the NCBI Taxonomy web search or the
+E-utilities API.
 
 ## 2. `hvn` — high pathogenic virus nucleotide database (BLASTN)
 

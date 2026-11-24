@@ -1,0 +1,24 @@
+# Species composition of the biothreat-related highly pathogenic virus database for hvFinder
+# Columns: Family,Genus,Species,Acronym,Number of viral sequences,Aliases
+# Family/Genus may be blank (= inherit the row above); Aliases is ";"-separated
+# and lists names that NCBI / older taxonomy use for the same species.
+Family,Genus,Species,Acronym,Number of viral sequences,Aliases
+Filoviridae,Orthoebolavirus,Orthoebolavirus zairense,EBOV,610,Zaire ebolavirus;Ebola virus;Zaire virus
+,,Orthoebolavirus sudanense,SUDV,26,Sudan ebolavirus;Sudan virus
+,,Orthoebolavirus bundibugyoense,BDBV,26,Bundibugyo ebolavirus;Bundibugyo virus
+,,Orthoebolavirus taiense,TAFV,4,Tai Forest ebolavirus;Taï Forest ebolavirus
+,,Orthoebolavirus restonense,RESTV,23,Reston ebolavirus;Reston virus
+,,Orthoebolavirus bombaliense,BOMV,10,Bombali ebolavirus;Bombali virus
+,Orthomarburgvirus,Orthomarburgvirus marburgense,MARV,90,Marburg virus;Marburg marburgvirus
+Paramyxoviridae,Henipavirus,Henipavirus hendraense,HeV,1,Hendra virus;Hendra henipavirus
+,,Henipavirus nipahense,NiV,90,Nipah virus;Nipah henipavirus
+Arenaviridae,Mammarenavirus,Mammarenavirus lassaense,LASV,84,Lassa virus;Lassa mammarenavirus
+,,Mammarenavirus machupoense,MACV,2,Machupo virus;Machupo mammarenavirus
+Hantaviridae,Orthohantavirus,Orthohantavirus hantanense,HTNV,63,Hantaan virus;Hantaan orthohantavirus
+,,Orthohantavirus seoulense,SEOV,14,Seoul virus;Seoul orthohantavirus
+Nairoviridae,Orthonairovirus,Orthonairovirus haemorrhagiae,CCHFV,389,Crimean-Congo hemorrhagic fever virus;Crimean Congo haemorrhagic fever virus;Congo hemorrhagic fever virus;CCHF virus
+Poxviridae,Orthopoxvirus,Orthopoxvirus monkeypox,MPXV,8749,Monkeypox virus;Mpox virus
+,,Orthopoxvirus variola,VARV,83,Variola virus;Smallpox virus
+Togaviridae,Alphavirus,Alphavirus eastern,EEEV,450,Eastern equine encephalitis virus;Eastern equine encephalomyelitis virus;EEEV
+,,Alphavirus venezuelan,VEEV,132,Venezuelan equine encephalitis virus;Venezuelan equine encephalomyelitis virus;VEEV
+,,Alphavirus western,WEEV,41,Western equine encephalitis virus;Western equine encephalomyelitis virus;WEEV

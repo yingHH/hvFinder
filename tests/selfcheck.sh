@@ -217,7 +217,7 @@ sec "reference data"
 
 # ---- target taxids
 taxids="$(cfg_value databases virus_taxids)"
-[[ -n "$taxids" ]] || taxids="$DATA_DIR/virus_taxids_high_pathogenic.txt"
+[[ -n "$taxids" ]] || taxids="$DATA_DIR/hv.taxid2name"
 [[ "$taxids" == /* ]] || taxids="$ROOT/$taxids"
 if [[ -f "$taxids" ]]; then
     n=$(n_lines "$taxids")
